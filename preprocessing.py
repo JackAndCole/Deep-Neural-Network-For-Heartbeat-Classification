@@ -5,7 +5,6 @@ from collections import Counter
 from multiprocessing import Pool
 
 import numpy as np
-import pywt
 import scipy.signal as sg
 import wfdb
 from sklearn.utils import cpu_count
@@ -20,10 +19,6 @@ before = 90
 after = 110
 
 tol = 0.05
-
-wavelet = "morl"
-scales = pywt.central_frequency(wavelet) * sampling_rate / np.arange(0.5, 100.5, 1)
-sampling_period = 1 / sampling_rate
 
 
 def pre_processing(record):
