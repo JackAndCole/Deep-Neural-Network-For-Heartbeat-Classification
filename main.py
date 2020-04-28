@@ -4,7 +4,7 @@ import keras
 import numpy as np
 import os
 from keras import backend as K
-from keras.callbacks import ReduceLROnPlateau
+from keras.callbacks import LearningRateScheduler
 from keras.callbacks import TensorBoard
 from keras.layers import Activation, BatchNormalization, Concatenate, Conv1D, Dense, Flatten, Input, MaxPooling1D
 from keras.models import Model
@@ -12,7 +12,8 @@ from keras.regularizers import l2
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import RobustScaler
 
-np.random.seed(12345)
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+np.random.seed(0)
 
 
 def f1(y_true, y_pred):
@@ -52,13 +53,14 @@ def categorical_focal_loss(gamma=2):
         y_pred = K.constant(y_pred) if not K.is_tensor(y_pred) else y_pred
         y_true = K.cast(y_true, y_pred.dtype)
 
-        return K.sum(
-            -y_true * K.pow(1 - y_pred, gamma) * K.log(y_pred + K.epsilon()), axis=-1)
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+
+        return K.sum(-y_true * K.pow(1 - y_pred, gamma) * K.log(y_pred), axis=-1)
 
     return focal_loss
 
 
-def create_model(l=0.01):
+def create_model(l=0.0):
     inputs1 = Input(shape=(200, 1))
     x1 = inputs1
 
@@ -90,8 +92,8 @@ def create_model(l=0.01):
 
     x = Concatenate()([x1, x2])
 
-    x = Dense(64, kernel_initializer="he_normal", kernel_regularizer=l2(l), bias_regularizer=l2(l))(x)
-    x = Activation("relu")(x)
+    x = Dense(64, kernel_initializer="he_normal", kernel_regularizer=l2(l), bias_regularizer=l2(l),
+              activation="relu")(x)
 
     outputs = Dense(4, activation="softmax")(x)
 
@@ -123,7 +125,7 @@ class MyGenerator(keras.utils.Sequence):
         return [x1_batch, x2_batch], y_batch
 
 
-def load_data(filename="dataset/mitdb.pkl"):
+def load_data(filename="./dataset/mitdb.pkl"):
     import pickle
 
     with open(filename, "rb") as f:
@@ -133,11 +135,10 @@ def load_data(filename="dataset/mitdb.pkl"):
 
 
 def main():
-    log_dir = os.path.join("logs", datetime.now().strftime("%H-%M-%S"))
+    epochs = 50
+    batch_size = 512
 
-    epochs = 100
-    batch_size = 2048
-
+    # loading data
     (x1_train, x2_train, y_train), (x1_test, x2_test, y_test) = load_data()
 
     x1_train = np.expand_dims(x1_train, axis=-1)
@@ -156,18 +157,26 @@ def main():
     train_generator = MyGenerator(x1_train, x2_train, y_train, batch_size)
     test_generator = MyGenerator(x1_test, x2_test, y_test, batch_size)
 
-    model = create_model(l=0)
+    model = create_model(l=1e-3)
     model.summary()
 
+    # callbacks
+    log_dir = os.path.join("./logs", datetime.now().strftime("%H-%M-%S"))
     tb_cb = TensorBoard(log_dir=log_dir)
-    reduce_lr = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=5, verbose=1)
 
-    alpha = {0: 1, 1: 1, 2: 1, 3: 7}
-    model.compile(loss=categorical_focal_loss(gamma=5), optimizer="adam", metrics=["acc", f1])
-    model.fit_generator(train_generator, epochs=epochs, verbose=1, callbacks=[tb_cb, reduce_lr],
-                        validation_data=test_generator, class_weight=alpha)
+    def schedule(epoch, lr):
+        if (epoch + 1) % 10 == 0:
+            lr *= 0.1
+        return lr
 
-    model.save(os.path.join("models", "final_model.h5"))
+    lr_scheduler = LearningRateScheduler(schedule=schedule, verbose=0)
+
+    # training
+    model.compile(loss=categorical_focal_loss(gamma=2), optimizer="adam", metrics=["acc", f1])
+    model.fit_generator(train_generator, epochs=epochs, verbose=1, callbacks=[tb_cb, lr_scheduler],
+                        validation_data=test_generator)
+
+    model.save(os.path.join("./models", "model_focalloss.h5"))
 
     y_true = np.argmax(y_test, axis=-1)
     y_pred = np.argmax(model.predict([x1_test, x2_test], batch_size=batch_size, verbose=1), axis=-1)

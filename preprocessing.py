@@ -1,10 +1,10 @@
-import os
 import pickle
 import sys
 from collections import Counter
 from multiprocessing import Pool
 
 import numpy as np
+import os
 import scipy.signal as sg
 import wfdb
 from sklearn.utils import cpu_count
@@ -47,13 +47,11 @@ def pre_processing(record):
     rris = np.diff(r_peaks)
 
     avg_rri = np.mean(rris)
-    avg_ampl = np.mean(signal[r_peaks])
-
     x1, x2, y = [], [], []
     for index in tqdm(range(len(r_peaks)), desc=record, file=sys.stdout):
-        if index <= 1 or index >= len(r_peaks) - 2:
+        if index == 0 or index == len(r_peaks) - 1:
             continue
-        beat = signal[r_peaks[index] - before: r_peaks[index] + after] / avg_ampl
+        beat = signal[r_peaks[index] - before: r_peaks[index] + after]
 
         pre_rri = rris[index - 1]
         post_rri = rris[index]

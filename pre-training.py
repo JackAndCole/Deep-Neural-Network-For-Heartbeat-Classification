@@ -43,13 +43,14 @@ def categorical_focal_loss(gamma=2):
         y_pred = K.constant(y_pred) if not K.is_tensor(y_pred) else y_pred
         y_true = K.cast(y_true, y_pred.dtype)
 
-        return K.sum(
-            -y_true * K.pow(1 - y_pred, gamma) * K.log(y_pred + K.epsilon()), axis=-1)
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+
+        return K.sum(-y_true * K.pow(1 - y_pred, gamma) * K.log(y_pred), axis=-1)
 
     return focal_loss
 
 
-def load_data(filename="dataset/mitdb.pkl"):
+def load_data(filename="./dataset/mitdb.pkl"):
     import pickle
 
     with open(filename, "rb") as f:
@@ -68,8 +69,8 @@ if __name__ == "__main__":
     x2_train = scaler.fit_transform(x2_train)
     x2_test = scaler.transform(x2_test)
 
-    model = load_model(os.path.join("models", "final_model.h5"),
-                       custom_objects={"focal_loss": categorical_focal_loss(gamma=5),
+    model = load_model(os.path.join("./models", "model_focalloss.h5"),
+                       custom_objects={"focal_loss": categorical_focal_loss(gamma=2),
                                        "f1": f1})
     model.summary()
 
