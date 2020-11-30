@@ -1,4 +1,4 @@
-# Code for: Focal Loss-Based Deep Neural Network for Heartbeat Classification
+# Code for: A hybrid method for heartbeat classification via convolutional neural networks, multilayer perceptrons and focal loss
 ## Dataset
 
 [MIT-BIH Arrhythmia database](https://www.physionet.org/content/mitdb/1.0.0/)
