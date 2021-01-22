@@ -17,7 +17,9 @@
 
 ## Cite
 
-The paper is submitted to the journal for review. 
+If our work is helpful to you, please cite:
+
+Wang T, Lu C, Yang M, et al. A hybrid method for heartbeat classification via convolutional neural networks, multilayer perceptrons and focal loss[J]. PeerJ Computer Science, 2020, 6: e324.
 
 ## Email:
 
